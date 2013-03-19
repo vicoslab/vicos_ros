@@ -13,7 +13,7 @@
     <arg name="stacks" value="$(arg stacks)" />
     <arg name="3d_sensor" value="$(arg 3d_sensor)" />
   </include>
-  <include file="$(find turtlebot_dummy)/launch/includes/_mobile_base.launch">
+  <include file="$(find turtlebot_vicos)/launch/includes/_mobile_base.launch">
   </include>
   <!--include file="$(find turtlebot_bringup)/launch/includes/_netbook.launch">
     <arg name="battery" value="$(arg battery)" />
