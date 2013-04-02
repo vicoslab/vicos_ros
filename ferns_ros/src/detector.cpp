@@ -208,8 +208,6 @@ void imageReceiver(const sensor_msgs::ImageConstPtr& image) {
     return;
   }  
 
-  ROS_ERROR("%d %d", bridge->image.cols, bridge->image.rows);
-
   //frame = new IplImage(bridge->image);
   //cv::imshow("ferns-demo", bridge->image);
 	
@@ -235,7 +233,10 @@ int main(int argc, char **argv)
 {
   ros::init(argc, argv, "ferns_ros");
 
-  string model_image("/home/vicos/ROS/ferns_data/book.jpg");
+  string model_image;
+
+  ros::NodeHandle n;
+  n.param("ferns_detector/model", model_image, string("model.jpg"));
 
   string detector_model = model_image + string(".detector_data");
 
@@ -259,10 +260,7 @@ int main(int argc, char **argv)
   //ROS handle has to be after detector initialization. Otherwise we get seg fault because of Ferns library!
   //ros::NodeHandle n;
 
-  ros::NodeHandle n;
-  n.param("ferns_detector/model", model_image, string("model.jpg"));
-
-	tracker->initialize();
+  tracker->initialize();
 
   n.param("ferns_detector/show_cv_window", SHOW_CV_WINDOW, true);
   n.param("ferns_detector/image_topic", IMAGE_TOPIC, string("/camera/rgb/image_color"));
