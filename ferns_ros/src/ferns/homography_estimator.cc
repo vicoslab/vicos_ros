@@ -51,6 +51,8 @@ homography_estimator::homography_estimator(void)
   normalized_u_v_up_vp = 0;
   inliers = 0;
   verbose_level = 0;
+  scores = 0;
+  sorted_ids = 0;
 }
 
 homography_estimator::~homography_estimator(void)
