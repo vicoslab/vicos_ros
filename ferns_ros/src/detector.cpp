@@ -2,6 +2,7 @@
 #include "std_msgs/String.h"
 #include <sstream>
 #include <iostream>
+#include <map>
 #include <string>
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
@@ -11,6 +12,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <ferns_ros/Detection.h>
 #include <ferns_ros/DetectedPoint.h>
+#include <ferns_ros/ModelStatus.h>
 #include "ferns/mcv.h"
 #include "ferns/planar_pattern_detector_builder.h"
 #include "ferns/template_matching_based_tracker.h"
@@ -20,13 +22,9 @@ using namespace std;
 using namespace ferns_ros;
 namespace enc = sensor_msgs::image_encodings;
 
-
 const int max_filename = 1000;
 
 enum source_type {webcam_source, sequence_source, video_source};
-
-planar_pattern_detector * detector = NULL;
-template_matching_based_tracker * tracker = NULL;
 
 /*
 0: Detect when tracking fails or for initialization then track.
@@ -36,9 +34,8 @@ template_matching_based_tracker * tracker = NULL;
 */
 int mode = 2;
 //Show CV window with ferns detections
-bool show_window = true;
 bool show_tracked_locations = true;
-bool show_keypoints = true;
+bool show_keypoints = false;
 
 
 void draw_quadrangle(Mat& frame, int u0, int v0, int u1, int v1,int u2, int v2, int u3, int v3, Scalar color, int thickness, Detection& detection) {
@@ -117,33 +114,32 @@ void draw_recognized_keypoints(Mat& frame, planar_pattern_detector * detector)
 }
 
 
-bool detect_and_draw(Mat& frame, Detection& detection) {
+bool detect_and_draw(planar_pattern_detector * detector,
+        template_matching_based_tracker * tracker, Mat& frame, Detection& detection, Mat& canvas) {
 
 	static bool last_frame_ok=false;
 
-  IplImage iplFrame = frame;
+    IplImage iplFrame = frame;
 
 	if (mode == 1 || ((mode==0) && last_frame_ok)) {
 		bool ok = tracker->track(&iplFrame);
 		last_frame_ok=ok;
 
-
 		if (!ok) {
 			if (mode==0) {
-        detect_and_draw(frame, detection);
-        return true;
-      } else {
-				draw_initial_rectangle(frame, tracker, detection);
+                detect_and_draw(detector, tracker, frame, detection, canvas);
+                return true;
+        } else {
+				if (!canvas.empty()) draw_initial_rectangle(canvas, tracker, detection);
 				tracker->initialize();
 			}
 		} else {
 
-			draw_tracked_position(frame, tracker, detection);
-			if (show_tracked_locations) draw_tracked_locations(frame, tracker);
+			if (!canvas.empty()) draw_tracked_position(canvas, tracker, detection);
+			if (!canvas.empty() && show_tracked_locations) draw_tracked_locations(canvas, tracker);
 
 		}
 
-		cv::putText(frame, "template tracking", cv::Point(10, 30), FONT_HERSHEY_PLAIN, 5, cv::Scalar(255, 255, 255));
 	} else {
 		detector->detect(&iplFrame);
 
@@ -158,127 +154,339 @@ bool detect_and_draw(Mat& frame, Detection& detection) {
 
 			if (mode == 3 && tracker->track(&iplFrame)) {
 
-				if (show_keypoints) {
-					draw_detected_keypoints(frame, detector);
-					draw_recognized_keypoints(frame, detector);
-				}
-			  draw_tracked_position(frame, tracker, detection);
+                if (!canvas.empty()) {
+				    if (show_keypoints) {
+					    draw_detected_keypoints(canvas, detector);
+					    draw_recognized_keypoints(canvas, detector);
+				    }
+			        draw_tracked_position(canvas, tracker, detection);
 
-				if (show_tracked_locations) draw_tracked_locations(frame, tracker);
-
-				cv::putText(frame, "detection+template", cv::Point(10, 30), FONT_HERSHEY_PLAIN, 5, cv::Scalar(255, 255, 255));
+				    if (show_tracked_locations) draw_tracked_locations(canvas, tracker);
+                }
 			} else {
-				if (show_keypoints) {
-					draw_detected_keypoints(frame, detector);
-					draw_recognized_keypoints(frame, detector);
-				}
-				draw_detected_position(frame, detector, detection);
-				cv::putText(frame, "detection", cv::Point(10, 30), FONT_HERSHEY_PLAIN, 5, cv::Scalar(255, 255, 255));
+                if (!canvas.empty()) {
+				    if (show_keypoints) {
+					    draw_detected_keypoints(canvas, detector);
+					    draw_recognized_keypoints(canvas, detector);
+				    }
+				    draw_detected_position(canvas, detector, detection);
+                }
 			}
 		} else {
 			last_frame_ok=false;
-			if (show_keypoints) draw_detected_keypoints(frame, detector);
+			if (!canvas.empty() && show_keypoints) draw_detected_keypoints(canvas, detector);
 
-			if (mode == 3)
-				cv::putText(frame, "detection+template", cv::Point(10, 30), FONT_HERSHEY_PLAIN, 5, cv::Scalar(255, 255, 255));
-			else
-				cv::putText(frame, "detection", cv::Point(10, 30), FONT_HERSHEY_PLAIN, 5, cv::Scalar(255, 255, 255));
 		}
 	}
   
   return last_frame_ok;
 }
 
+void
+split( vector<string> & theStringVector,  /* Altered/returned value */
+       const string & theString, const string & theDelimiter)
+{
+    size_t  start = 0, end = 0;
+
+    while ( end != string::npos)
+    {
+        end = theString.find( theDelimiter, start);
+
+        // If at end, use length=maxLength.  Else use length=end-start.
+        theStringVector.push_back( theString.substr(start, (end == string::npos) ? string::npos : end - start));
+
+        // If at end, use start=maxSize.  Else use start=end+delimiter.
+        start = (( end > (string::npos - theDelimiter.size()) ) ? string::npos  :  end + theDelimiter.size());
+    }
+}
+
+typedef struct {
+    string name;
+    string path;
+    planar_pattern_detector * detector;
+    template_matching_based_tracker * tracker;
+    bool loaded;
+    bool loading;
+    bool active;
+} Model;
+
 cv_bridge::CvImagePtr bridge;
 
-
 bool SHOW_CV_WINDOW;
+bool LOAD_AT_START;
+bool ACTIVATE_AT_START;
 string IMAGE_TOPIC;
+Mat canvas;
 
 ros::Publisher detection;
+ros::Publisher status;
+
+std::map<string, Model> models;
+
+void parseModels(string input) {
+
+    vector<string> n;
+
+    split(n, input, string(";"));
+
+    for (int i = 0; i < n.size(); i++) {
+
+        string name("default");
+        string path = n[i];
+        size_t j = n[i].find("=");
+
+        if (j != string::npos) {
+            name = n[i].substr(0, j);
+            path = n[i].substr(j+1, string::npos);
+        }
+
+        Model model;
+        model.name = name;
+        model.path = path;
+        model.detector = NULL;
+        model.tracker = NULL;
+        model.loaded = false;
+        model.loading = false;
+        model.active = false;
+
+        models[name] = model;
+
+    }
+
+}
+
+bool loadModel(string name) {
+
+    if (!models.count(name)) return false;
+
+    Model model = models[name];
+
+    if (model.loading) return false;
+
+    if (model.loaded) return true;
+
+    ROS_INFO("Loading model '%s'", name.c_str());
+
+    model.loading = true;
+
+    string detector_model = model.path + string(".detector_data");
+
+    model.detector = planar_pattern_detector_builder::just_load(detector_model.c_str());
+
+    if (!model.detector) {
+        ROS_ERROR("Unable to load detector for image '%s'", model.path.c_str());
+        return false;
+    }
+
+    model.detector->set_maximum_number_of_points_to_detect(1000);
+    model.tracker = new template_matching_based_tracker();
+
+    string tracker_model = model.path + string(".tracker_data");
+
+    if (!model.tracker->load(tracker_model.c_str())) {
+        ROS_ERROR("Unable to load tracker for image '%s'", model.path.c_str());
+        delete model.detector;
+        return false;    
+    }
+
+    model.tracker->initialize();
+
+    model.loading = false;
+    model.loaded = true;
+
+    models[name] = model;
+
+    ROS_INFO("Loaded model '%s'", name.c_str());
+
+    return true;
+}
+
+bool unloadModel(string name) {
+
+    if (!models.count(name)) return false;
+
+    Model model = models[name];
+
+    if (!model.loaded) return false;
+
+    ROS_INFO("Unloading model '%s'", name.c_str());
+
+    model.active = false;
+    model.loaded = false;
+
+    delete model.detector;
+    delete model.tracker;
+
+    models[name] = model;
+
+    return true;
+}
+
+bool activateModel(string name) {
+
+    if (!models.count(name)) return false;
+
+    Model model = models[name];
+
+    if (!model.loaded) return false;
+
+    ROS_INFO("Activating model '%s'", name.c_str());
+
+    model.active = true;
+
+    models[name] = model;
+
+    return true;
+}
+
+bool deactivateModel(string name) {
+
+    if (!models.count(name)) return false;
+
+    Model model = models[name];
+
+    if (!model.loaded) return false;
+
+    ROS_INFO("Deactivating model '%s'", name.c_str());
+
+    model.active = false;
+
+    models[name] = model;
+
+    return true;
+}
+
 
 /*Callback for color image from kinect*/
 void imageReceiver(const sensor_msgs::ImageConstPtr& image) { 
  
-  try{
-    bridge = cv_bridge::toCvCopy(image, enc::MONO8);
-  }
-  catch (cv_bridge::Exception& e){
-    ROS_ERROR("cv_bridge exception: %s", e.what());
-    return;
-  }  
+    try{
+        bridge = cv_bridge::toCvCopy(image, enc::MONO8);
+    }
+    catch (cv_bridge::Exception& e){
+        ROS_ERROR("cv_bridge exception: %s", e.what());
+        return;
+    }  
 
-  //frame = new IplImage(bridge->image);
-  //cv::imshow("ferns-demo", bridge->image);
-	
-  //if (bridge->image.origin != IPL_ORIGIN_TL)
-  //  cv::flip(bridge->image, bridge->image, 0);
+    if(SHOW_CV_WINDOW) {
+        bridge->image.copyTo(canvas);
+    }
 
-  Detection detectionMsg;
+    std::map<string, Model>::iterator it;
 
-  if(detect_and_draw(bridge->image, detectionMsg)) {
-    detectionMsg.header = image->header;	
-	  detection.publish(detectionMsg);
-  }
+    for (std::map<string, Model>::iterator it=models.begin(); it!=models.end(); ++it) {
 
-  // Show ferns detections in CV window.
-  if(SHOW_CV_WINDOW){
-		cv::imshow("Ferns", bridge->image);
-  	cv::waitKey(1);
-  }
+        if (!it->second.active) continue;
+
+        Detection detectionMsg;
+
+        if(detect_and_draw(it->second.detector, it->second.tracker, bridge->image, detectionMsg, canvas)) {
+            detectionMsg.header = image->header;
+            detectionMsg.model = it->first;	
+            detection.publish(detectionMsg);
+        }
+
+    }
+
+    // Show ferns detections in CV window.
+    if(SHOW_CV_WINDOW) {
+	    cv::imshow("Ferns", canvas);
+        cv::waitKey(1);
+    }
+
+}
+
+void statusReceiver(const ModelStatus& newStatus) { 
+
+    ROS_INFO("New status %s ", newStatus.model.c_str());
+
+    if (!models.count(newStatus.model)) return;
+
+    Model model = models[newStatus.model];
+
+    if (newStatus.active && !newStatus.loaded) {
+
+        ModelStatus statusMsg;
+
+        statusMsg.model = model.name;
+        statusMsg.active = model.active;
+        statusMsg.loaded = model.loaded;
+
+        status.publish(statusMsg);
+
+        return;
+    }
+
+    if (newStatus.loaded) {
+        loadModel(newStatus.model);
+
+        if (newStatus.active) {
+
+            activateModel(newStatus.model);
+
+        } else {
+
+            deactivateModel(newStatus.model);
+
+        }
+    }
+    else {
+        unloadModel(newStatus.model);
+    }
 
 }
 
 int main(int argc, char **argv)
 {
-  ros::init(argc, argv, "ferns_ros");
+    ros::init(argc, argv, "ferns_ros");
 
-  string model_image;
+    string models_path;
 
-  ros::NodeHandle n;
-  n.param("ferns_detector/model", model_image, string("model.jpg"));
+    ros::NodeHandle n;
 
-  string detector_model = model_image + string(".detector_data");
+    n.param("ferns_detector/show_cv_window", SHOW_CV_WINDOW, true);
+    n.param("ferns_detector/load_at_start", LOAD_AT_START, true);
+    n.param("ferns_detector/activate_at_start", ACTIVATE_AT_START, true);
+    n.param("ferns_detector/image_topic", IMAGE_TOPIC, string("/camera/rgb/image_color"));
+    n.param("ferns_detector/model", models_path, string("model.jpg"));
 
-  detector = planar_pattern_detector_builder::just_load(detector_model.c_str());
+    parseModels(models_path);
 
-  if (!detector) {
-    ROS_ERROR("Unable to load detector for image '%s'", model_image.c_str());
-    return -1;
-  }
+    if (LOAD_AT_START) {
 
-  detector->set_maximum_number_of_points_to_detect(1000);
-  tracker = new template_matching_based_tracker();
+        std::map<string, Model>::iterator it;
 
-  string tracker_model = model_image + string(".tracker_data");
+        for (std::map<string, Model>::iterator it=models.begin(); it!=models.end(); ++it) {
+            loadModel(it->first);
+            if (ACTIVATE_AT_START) activateModel(it->first);
+        }
 
-  if (!tracker->load(tracker_model.c_str())) {
-    ROS_ERROR("Unable to load tracker for image '%s'", model_image.c_str());
-    return -1;    
-  }
+    }
+
 
   //ROS handle has to be after detector initialization. Otherwise we get seg fault because of Ferns library!
   //ros::NodeHandle n;
 
-  tracker->initialize();
 
-  n.param("ferns_detector/show_cv_window", SHOW_CV_WINDOW, true);
-  n.param("ferns_detector/image_topic", IMAGE_TOPIC, string("/camera/rgb/image_color"));
+    if (SHOW_CV_WINDOW) {
+      cv::namedWindow("Ferns", CV_WINDOW_AUTOSIZE); 
+    }
 
-  if (SHOW_CV_WINDOW) {
-	  cv::namedWindow("Ferns", CV_WINDOW_AUTOSIZE); 
-  }
-
-  detection = n.advertise<Detection>("detection", 1000);
-	ros::Subscriber sub = n.subscribe(IMAGE_TOPIC, 10, imageReceiver);
+    detection = n.advertise<Detection>("detection", 1000);
+    status = n.advertise<ModelStatus>("get_status", 1000);
+    ros::Subscriber image_sub = n.subscribe(IMAGE_TOPIC, 10, imageReceiver);
+    ros::Subscriber stat_sub = n.subscribe("set_status", 10, statusReceiver);
 
 	ros::spin(); 
 
 	if(!ros::ok())
 	{
 		clog << endl;
-		delete detector;
-		delete tracker;
+        std::map<string, Model>::iterator it;
+
+        for (std::map<string, Model>::iterator it=models.begin(); it!=models.end(); ++it) {
+            unloadModel(it->first);
+        }
 
 		if (SHOW_CV_WINDOW) cvDestroyWindow("Ferns");
 	}

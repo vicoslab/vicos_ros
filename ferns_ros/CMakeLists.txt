@@ -7,7 +7,7 @@ find_package(catkin REQUIRED COMPONENTS std_msgs image_transport cv_bridge genms
 ## Declare ROS messages and services ##
 #######################################
 
-add_message_files(DIRECTORY msg FILES Detection.msg DetectedPoint.msg)
+add_message_files(DIRECTORY msg FILES Detection.msg DetectedPoint.msg ModelStatus.msg)
 
 generate_messages(DEPENDENCIES std_msgs)
 
