@@ -89,7 +89,7 @@ if (( $STATE < 1 )); then
     wget http://packages.ros.org/ros.key -O - | sudo apt-key add -
   fi
 
-  PACKAGES="ros-groovy-desktop-full ros-groovy-turtlebot ros-groovy-turtlebot-apps ros-groovy-turtlebot-create ros-groovy-turtlebot-viz ros-groovy-speakeasy ros-groovy-audio-common vim git subversion openssh-server chrony git-gui screen synaptic libzbar-dev"
+  PACKAGES="ros-groovy-desktop-full ros-groovy-turtlebot ros-groovy-turtlebot-apps ros-groovy-turtlebot-create ros-groovy-turtlebot-viz ros-groovy-speakeasy ros-groovy-audio-common vim git subversion openssh-server chrony git-gui screen synaptic libzbar-dev python-rosinstall"
 
   if [ ! -f /etc/apt/sources.list.d/webupd8team-jupiter-quantal.list -a  -n $LAPTOP ]; then
     add-apt-repository ppa:webupd8team/jupiter
