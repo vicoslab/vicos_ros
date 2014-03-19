@@ -13,6 +13,11 @@ zbar_ros
 
 Integration of the [ZBar bar code reader library](http://zbar.sourceforge.net/) to ROS. The primary purpose of the package is to enable mobile robots to read QR codes from video streams.
 
+facedetector
+------------
+
+Integration of OpenCV face detection algorithm in ROS. Supports multiple faces.
+
 turtlebot_vicos
 ---------------
 
