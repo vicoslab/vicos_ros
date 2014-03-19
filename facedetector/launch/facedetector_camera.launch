@@ -1,0 +1,13 @@
+<launch>
+
+  <node pkg="usb_cam" type="usb_cam_node" name="camera" output="screen">
+    <param name="video_device" type="string" value="/dev/video0" />
+  </node>
+
+  <include file="$(find facedetector)/launch/facedetector.launch">
+	<arg name="image_topic" value="/camera/image_raw" />
+  </include>
+
+  <include file="$(find facedetector)/launch/facevisualizer.launch" />
+
+</launch>

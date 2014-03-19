@@ -1,0 +1,56 @@
+#!/usr/bin/env python
+import roslib
+roslib.load_manifest('facedetector')
+import rospy
+import sys, select, termios, tty
+import cv
+import time
+import Image
+import os
+import cv2
+from std_msgs.msg import String
+from std_msgs.msg import Bool
+import sensor_msgs.msg
+from dynamic_reconfigure.server import Server as DynamicReconfigureServer
+from facedetector.msg import Detection
+from cv_bridge import CvBridge, CvBridgeError
+from sensor_msgs.msg import Image
+
+CV_WINDOW_TITLE = "Detected Faces"
+
+# Node for face detection.
+class FaceVisualizer():
+      
+	def face_callback(self, data):
+
+		n = len(data.x)
+
+		image = cv.CreateImage((self.face_size * n, self.face_size), 8, 1)
+
+		try:
+
+			for i in xrange(0, n):
+				dst = cv.GetSubRect(image, ( i * self.face_size, 0, self.face_size, self.face_size ))
+				cv.Resize(self.bridge.imgmsg_to_cv(data.image[i], "mono8"), dst, cv.CV_INTER_LINEAR)
+
+			cv.ShowImage(CV_WINDOW_TITLE, image)
+			cv.WaitKey(1)
+
+		except CvBridgeError, e:
+			print e
+	      
+	def __init__(self):
+		faces_topic = rospy.get_param('~topic', rospy.resolve_name('/faces'))
+		
+		self.face_size = rospy.get_param('~face_size', 128)
+
+		self.bridge = CvBridge()
+		self.faces_sub = rospy.Subscriber(faces_topic, Detection, self.face_callback)
+
+if __name__ == '__main__':
+
+        rospy.init_node('facevisualizer')
+        try:
+		fd = FaceVisualizer()
+		rospy.spin()	
+        except rospy.ROSInterruptException: pass

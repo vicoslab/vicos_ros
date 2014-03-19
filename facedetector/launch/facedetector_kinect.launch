@@ -1,0 +1,11 @@
+<launch>
+
+  <include file="$(find turtlebot_bringup)/launch/3dsensor.launch" />
+
+  <include file="$(find facedetector)/launch/facedetector.launch">
+	<arg name="image_topic" value="/camera/rgb/image_color" />
+  </include>
+
+  <include file="$(find facedetector)/launch/facevisualizer.launch" />
+
+</launch>

@@ -1,0 +1,7 @@
+<launch>
+
+  <node pkg="facedetector" type="visualizer" name="facevisualizer" output="screen">
+    <param name="topic" type="string" value="/facedetector/faces" />
+  </node>
+
+</launch>
