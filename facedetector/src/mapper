@@ -1,0 +1,80 @@
+#!/usr/bin/env python
+import roslib
+roslib.load_manifest('facedetector')
+import rospy
+import sys, select, termios, tty
+from std_msgs.msg import String, Bool, ColorRGBA
+import sensor_msgs.msg
+import message_filters
+from facedetector.msg import Detection
+from localizer.srv import Localize
+from sensor_msgs.msg import CameraInfo
+from visualization_msgs.msg import Marker, MarkerArray
+from image_geometry import PinholeCameraModel
+from geometry_msgs.msg import Point, Vector3
+
+# Node for face detection.
+class FaceMapper():
+
+	def faces_callback(self, faces, camera):
+
+		camera_model = PinholeCameraModel()
+		camera_model.fromCameraInfo(camera)
+
+		n = len(faces.x)
+
+		markers = MarkerArray()
+
+		for i in xrange(0, n):
+			u = faces.x[i] + faces.width[i] / 2
+			v = faces.y[i] + faces.height[i] / 2
+			#print u, v
+			point = Point(((u - camera_model.cx()) - camera_model.Tx()) / camera_model.fx(),
+		         ((v - camera_model.cy()) - camera_model.Ty()) / camera_model.fy(), 1)
+			#print point
+			resp = self.localize(faces.header, point, 3)
+			if resp:
+				marker = Marker()
+				marker.header.stamp = faces.header.stamp
+				marker.header.frame_id = faces.header.frame_id
+				marker.pose = resp.pose
+				marker.type = Marker.CUBE
+				marker.action = Marker.ADD
+				marker.frame_locked = False
+				marker.lifetime = rospy.Time(0)
+				marker.id = i
+				marker.scale = Vector3(0.1, 0.1, 0.1)
+				marker.color = ColorRGBA(1, 0, 0, 1)
+				markers.markers.append(marker)
+
+		self.markers_pub.publish(markers)
+
+		self.message_counter = self.message_counter + 1
+
+	def __init__(self):
+		region_scope = rospy.get_param('~region', 3)
+		markers_topic = rospy.get_param('~markers_topic', rospy.resolve_name('%s/markers' % rospy.get_name()))
+		faces_topic = rospy.get_param('~faces_topic', '/facedetector/faces')
+		camera_topic = rospy.get_param('~camera_topic', '/camera/camera_info')		
+
+		rospy.wait_for_service('localize')
+
+		self.faces_sub = message_filters.Subscriber(faces_topic, Detection)
+		self.camera_sub = message_filters.Subscriber(camera_topic, CameraInfo)
+		self.joined_sub = message_filters.TimeSynchronizer([self.faces_sub, self.camera_sub], 30)
+		self.joined_sub.registerCallback(self.faces_callback)
+
+		self.localize = rospy.ServiceProxy('localize', Localize)
+
+		self.markers_pub = rospy.Publisher(markers_topic, MarkerArray)
+
+		self.message_counter = 0
+
+# Main function.    
+if __name__ == '__main__':
+
+        rospy.init_node('facemapper')
+        try:
+		fd = FaceMapper()
+		rospy.spin()	
+        except rospy.ROSInterruptException: pass

@@ -2,8 +2,8 @@
 <package>
   <name>facedetector</name>
   <version>0.1.0</version>
-  <description>The facedetector package</description>
-  <maintainer email="luka.cehovin@todo.todo">Luka Cehovin</maintainer>
+  <description>The facedetector package provides nodes that perform OpenCV face detection.</description>
+  <maintainer email="luka.cehovin@gmail.com">Luka Cehovin</maintainer>
   <license>BSD</license>
   <url type="website">https://trac.vicos.si/ros</url>
 
@@ -20,8 +20,6 @@
   <run_depend>sensor_msgs</run_depend>
   <run_depend>dynamic_reconfigure</run_depend>
   <run_depend>message_runtime</run_depend>
+  <run_depend>localizer</run_depend>
 
-  <export>
-
-  </export>
 </package>

@@ -74,7 +74,7 @@ class FaceDetect():
 								eye[0][1] + eye[0][3]), cv.RGB(255, 0, 0), 1, 8, 0)		
 
 				else:
-					detections.append((x,y,w,h,cv.CloneMat(face_image)))
+					detections.append((pt1[0], pt1[1], pt2[0] - pt1[0], pt2[1] - pt1[1],cv.CloneMat(face_image)))
 
 		cv.ResetImageROI(iplimage)
 
@@ -97,7 +97,7 @@ class FaceDetect():
 			if len(detections) > 0:
 				message = Detection()
 				message.header.seq = self.message_counter
-				message.header.stamp = rospy.Time.now()
+				message.header.stamp = data.header.stamp #rospy.Time.now()
 				message.header.frame_id = data.header.frame_id
 				for detection in detections:
 					message.x.append(detection[0])
