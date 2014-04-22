@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<package>
+  <name>localizer</name>
+  <version>0.1.0</version>
+  <description>The localizer package provides approximate 3D localization of camera points using depth image.</description>
+  <maintainer email="luka.cehovin@gmail.com">Luka Cehovin</maintainer>
+  <license>BSD</license>
+  <url type="website">https://trac.vicos.si/ros</url>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>rospy</build_depend>
+  <build_depend>nodelet</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>dynamic_reconfigure</build_depend>
+  <build_depend>message_generation</build_depend>
+  <run_depend>roscpp</run_depend>
+  <run_depend>rospy</run_depend>
+  <run_depend>nodelet</run_depend>
+  <run_depend>std_msgs</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>dynamic_reconfigure</run_depend>
+  <run_depend>message_runtime</run_depend>
+
+  <export>
+   <nodelet plugin="${prefix}/nodelet_plugins.xml"/>
+  </export>
+</package>

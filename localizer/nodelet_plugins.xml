@@ -1,0 +1,7 @@
+<library path="lib/liblocalizer">
+
+  <class name="localizer/LocalizerNodelet" type="localizer::LocalizerNodelet" base_class_type="nodelet::Nodelet" output="screen">
+    <description>A nodelet that provides an approximate 3D position for a point in camera.</description>
+  </class>
+
+</library>
