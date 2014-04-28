@@ -23,7 +23,6 @@
 namespace localizer {
 
 using namespace message_filters::sync_policies;
-namespace enc = sensor_msgs::image_encodings;
 
 // Encapsulate differences between processing float and uint16_t depths
 template<typename T> struct DepthTraits {};
@@ -62,25 +61,25 @@ const std::string stripSlashTF2(const std::string& str) {
 }
 
 class LocalizerNodelet : public nodelet::Nodelet {
-
+private:
 	// Subscriptions
-	message_filters::Subscriber<sensor_msgs::Image> sub_depth_image_;
-	message_filters::Subscriber<sensor_msgs::CameraInfo> sub_depth_info_;
-	boost::shared_ptr<tf2_ros::Buffer> tf_buffer_;
-	boost::shared_ptr<tf2_ros::TransformListener> tf_;
+	message_filters::Subscriber<sensor_msgs::Image> sub_depth_image;
+	message_filters::Subscriber<sensor_msgs::CameraInfo> sub_depth_info;
+	boost::shared_ptr<tf2_ros::Buffer> tf_buffer;
+	boost::shared_ptr<tf2_ros::TransformListener> tf_listener;
 	typedef ApproximateTime<sensor_msgs::Image, sensor_msgs::CameraInfo> SyncPolicy;
 	typedef message_filters::Synchronizer<SyncPolicy> Synchronizer;
-	boost::shared_ptr<Synchronizer> sync_;
+	boost::shared_ptr<Synchronizer> synchronized_listener;
 
-	ros::ServiceServer service;
-
-	// Publications
-	boost::mutex request_mutex_;
-
-	image_geometry::PinholeCameraModel depth_model_;
-
+	ros::ServiceServer localize_service;
+	boost::mutex request_mutex;
+	image_geometry::PinholeCameraModel saved_depth_model;
 	sensor_msgs::ImageConstPtr saved_depth_msg;
 
+	template<typename T>
+	bool estimate(const sensor_msgs::ImageConstPtr& depth_msg, const geometry_msgs::Point& point, int radius, const Eigen::Affine3d& target_to_depth, geometry_msgs::Pose& pose);
+
+public:
 	virtual void onInit();
 
 	void imageCallback(const sensor_msgs::ImageConstPtr& depth_image_msg,
@@ -88,20 +87,27 @@ class LocalizerNodelet : public nodelet::Nodelet {
 
 	bool localize(localizer::Localize::Request &req, localizer::Localize::Response &res);
 
-	template<typename T>
-	bool estimate(const sensor_msgs::ImageConstPtr& depth_msg, const geometry_msgs::Point& point, int radius, const Eigen::Affine3d& target_to_depth, geometry_msgs::Pose& pose);
 };
 
 bool LocalizerNodelet::localize(localizer::Localize::Request &req, localizer::Localize::Response &res) {
 
-	boost::lock_guard<boost::mutex> lock(request_mutex_);
-	
-	if (!saved_depth_msg) return false;
+	boost::lock_guard<boost::mutex> lock(request_mutex);
+
+	res.pose.position.x = 0;
+	res.pose.position.y = 0;
+	res.pose.position.z = 0;
+
+	res.pose.orientation.x = 0;
+	res.pose.orientation.y = 0;
+	res.pose.orientation.z = 1;
+	res.pose.orientation.w = 0;
+
+	if (!saved_depth_msg) return true;
 
 	Eigen::Affine3d target_to_depth;
 	try
 	{
-		geometry_msgs::TransformStamped transform = tf_buffer_->lookupTransform (
+		geometry_msgs::TransformStamped transform = tf_buffer->lookupTransform (
 				              stripSlashTF2(saved_depth_msg->header.frame_id), stripSlashTF2(req.header.frame_id),
 				              saved_depth_msg->header.stamp);
 
@@ -113,10 +119,10 @@ bool LocalizerNodelet::localize(localizer::Localize::Request &req, localizer::Lo
 		return false;
 	}
 
-	if (saved_depth_msg->encoding == enc::TYPE_16UC1) {
+	if (saved_depth_msg->encoding == sensor_msgs::image_encodings::TYPE_16UC1) {
 		estimate<uint16_t>(saved_depth_msg, req.point, req.scope, target_to_depth, res.pose);
 	}
-	else if (saved_depth_msg->encoding == enc::TYPE_32FC1) {
+	else if (saved_depth_msg->encoding == sensor_msgs::image_encodings::TYPE_32FC1) {
 		estimate<float>(saved_depth_msg, req.point, req.scope, target_to_depth, res.pose);
 	}
 	else {
@@ -134,10 +140,8 @@ void LocalizerNodelet::onInit()
 
 	ros::NodeHandle& nh = getNodeHandle();
 	ros::NodeHandle& private_nh = getPrivateNodeHandle();
-	//nh_depth_.reset( new ros::NodeHandle(nh, "depth") );
-	//it_depth_.reset( new image_transport::ImageTransport(*nh_depth_) );
-	tf_buffer_.reset( new tf2_ros::Buffer );
-	tf_.reset( new tf2_ros::TransformListener(*tf_buffer_) );
+	tf_buffer.reset( new tf2_ros::Buffer );
+	tf_listener.reset( new tf2_ros::TransformListener(*tf_buffer) );
 
 	saved_depth_msg.reset();
 
@@ -145,24 +149,24 @@ void LocalizerNodelet::onInit()
 	int queue_size;
 	private_nh.param("queue_size", queue_size, 10);
 
-	//image_transport::TransportHints hints("raw", ros::TransportHints(), getPrivateNodeHandle());
-    sub_depth_image_.subscribe(nh, "/camera/depth_registered/image_raw", 1);
-  	sub_depth_info_.subscribe(nh, "/camera/depth_registered/camera_info", 1);
+    sub_depth_image.subscribe(nh, "depth/image", 1);
+  	sub_depth_info.subscribe(nh, "depth/camera_info", 1);
 
-	// Synchronize inputs.
-	sync_.reset( new Synchronizer(SyncPolicy(queue_size), sub_depth_image_, sub_depth_info_) );
-	sync_->registerCallback(boost::bind(&LocalizerNodelet::imageCallback, this, _1, _2));
+	synchronized_listener.reset( new Synchronizer(SyncPolicy(queue_size), sub_depth_image, sub_depth_info) );
+	synchronized_listener->registerCallback(boost::bind(&LocalizerNodelet::imageCallback, this, _1, _2));
 
-	service = nh.advertiseService<LocalizerNodelet, localizer::Localize::Request, localizer::Localize::Response>("localize", &LocalizerNodelet::localize, this);
+	std::string service_name = ros::this_node::getName() + std::string("/localize");
+	localize_service = nh.advertiseService<LocalizerNodelet, localizer::Localize::Request, localizer::Localize::Response>(service_name, &LocalizerNodelet::localize, this);
 
 }
 
 void LocalizerNodelet::imageCallback(const sensor_msgs::ImageConstPtr& depth_image_msg,
                               const sensor_msgs::CameraInfoConstPtr& depth_info_msg) {
 
-	boost::lock_guard<boost::mutex> lock(request_mutex_);
-	
-	depth_model_.fromCameraInfo(depth_info_msg);
+	boost::lock_guard<boost::mutex> lock(request_mutex);
+	if (!depth_image_msg) return;
+
+	saved_depth_model.fromCameraInfo(depth_info_msg);
 	saved_depth_msg = depth_image_msg;
 
 }
@@ -171,10 +175,10 @@ template<typename T>
 bool LocalizerNodelet::estimate(const sensor_msgs::ImageConstPtr& depth_msg, const geometry_msgs::Point& point, int scope, const Eigen::Affine3d& target_to_depth, geometry_msgs::Pose& pose) {
 
 	// Extract all the parameters we need
-	double depth_fx = depth_model_.fx();
-	double depth_fy = depth_model_.fy();
-	double depth_cx = depth_model_.cx(), depth_cy = depth_model_.cy();
-	double depth_Tx = depth_model_.Tx(), depth_Ty = depth_model_.Ty();    
+	double depth_fx = saved_depth_model.fx();
+	double depth_fy = saved_depth_model.fy();
+	double depth_cx = saved_depth_model.cx(), depth_cy = saved_depth_model.cy();
+	double depth_Tx = saved_depth_model.Tx(), depth_Ty = saved_depth_model.Ty();    
 
 	Eigen::Vector4d xyz_target;
 	xyz_target << point.x, point.y, point.z, 1;
@@ -197,7 +201,7 @@ bool LocalizerNodelet::estimate(const sensor_msgs::ImageConstPtr& depth_msg, con
 
 	// in case we need a more robust estimate
 	if (scope > 1) {
-		scope = MIN(scope, 30);
+		scope = MIN(scope, 30); // Some reasonable bounds
 
 		std::vector<double> values;
 
@@ -215,6 +219,7 @@ bool LocalizerNodelet::estimate(const sensor_msgs::ImageConstPtr& depth_msg, con
 		} 
 
 		if (values.size() == 0) return false;
+
 		if (values.size() == 1) {
 			depth = values[0];
 		}
@@ -237,10 +242,15 @@ bool LocalizerNodelet::estimate(const sensor_msgs::ImageConstPtr& depth_msg, con
 
 	}
 
+	xyz_depth << ((u - depth_cx) * depth - depth_Tx) / depth_fx,
+		 ((v - depth_cy) * depth - depth_Ty) / depth_fy, depth, 1;
 
-	pose.position.x = ((u - depth_cx) * depth - depth_Tx) / depth_fx;
-	pose.position.y = ((v - depth_cy) * depth - depth_Ty) / depth_fy;
-	pose.position.z = depth;
+	// Transform to target camera frame
+	xyz_target = target_to_depth.inverse() * xyz_depth;
+
+	pose.position.x = xyz_target.x();
+	pose.position.y = xyz_target.y();
+	pose.position.z = xyz_target.z();
 
 	pose.orientation.x = 0;
 	pose.orientation.y = 0;

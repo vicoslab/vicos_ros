@@ -11,9 +11,7 @@ add_message_files(FILES Detection.msg)
 
 generate_messages(DEPENDENCIES sensor_msgs std_msgs geometry_msgs visualization_msgs)
 
-catkin_package(
-   CATKIN_DEPENDS message_runtime
-)
+catkin_package(CATKIN_DEPENDS message_runtime)
 
 install(PROGRAMS src/detector src/visualizer src/mapper
          DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

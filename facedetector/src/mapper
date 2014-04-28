@@ -57,14 +57,14 @@ class FaceMapper():
 		faces_topic = rospy.get_param('~faces_topic', '/facedetector/faces')
 		camera_topic = rospy.get_param('~camera_topic', '/camera/camera_info')		
 
-		rospy.wait_for_service('localize')
+		rospy.wait_for_service('localizer/localize')
 
 		self.faces_sub = message_filters.Subscriber(faces_topic, Detection)
 		self.camera_sub = message_filters.Subscriber(camera_topic, CameraInfo)
 		self.joined_sub = message_filters.TimeSynchronizer([self.faces_sub, self.camera_sub], 30)
 		self.joined_sub.registerCallback(self.faces_callback)
 
-		self.localize = rospy.ServiceProxy('localize', Localize)
+		self.localize = rospy.ServiceProxy('localizer/localize', Localize)
 
 		self.markers_pub = rospy.Publisher(markers_topic, MarkerArray)
 
