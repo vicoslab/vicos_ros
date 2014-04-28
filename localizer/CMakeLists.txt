@@ -29,6 +29,8 @@ add_library(localizer src/localizer.cpp)
 
 add_executable(localizer_node src/localizer_node.cpp) 
 
+ADD_DEPENDENCIES(localizer localizer_gencpp)
+
 ## Specify libraries to link a library or executable target against
 target_link_libraries(localizer ${catkin_LIBRARIES})
 
