@@ -18,6 +18,16 @@ facedetector
 
 Integration of OpenCV face detection algorithm in ROS. Supports multiple faces.
 
+localizer
+---------
+
+A package that determines depth of RGB camera detections using depth images.
+
+julius_ros
+----------
+
+Integration of the [Julius speech recognition](http://julius.sourceforge.jp/en_index.php) to ROS. The package is designed as a simple replacement to the existing [pocketsphinx package](http://wiki.ros.org/pocketsphinx).
+
 turtlebot_vicos
 ---------------
 
