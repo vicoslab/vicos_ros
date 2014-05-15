@@ -1,8 +1,8 @@
 <launch>
 
   <node pkg="localizer" type="localizer_node" name="localizer" output="screen">
-    <remap from="depth/camera_info" to="/camera/depth/camera_info" />
-    <remap from="depth/image" to="/camera/depth/image" />
+    <remap from="depth/camera_info" to="/camera/depth_registered/camera_info" />
+    <remap from="depth/image" to="/camera/depth/image_raw" />
   </node>
 
 </launch>
