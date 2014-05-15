@@ -1,0 +1,26 @@
+% NS_B
+<s>        sil
+
+% NS_E
+</s>       sil
+
+% HMM
+FILLER		f m
+FILLER		w eh l
+
+% NAME
+ROBOT     r ow b aa t
+
+% ACTION
+MOVE       m uw v
+LOOK       l uw k
+
+% TERMINATE
+STOP       s t aa p
+
+% DIRECTION
+FORWARD    f ao r w er d
+BACKWARDS  b ae k w er d z
+LEFT       l eh f t
+RIGHT      r ay t
+

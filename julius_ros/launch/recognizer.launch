@@ -1,0 +1,8 @@
+<launch>
+    <arg name="configuration"/>
+
+	<node pkg="julius_ros" type="recognizer" name="recognizer" output="screen" launch-prefix="aoss">
+	  <param name="configuration" type="string" value="$(arg configuration)" />
+<param name="debug" type="bool" value="true" />
+	</node>
+</launch>
