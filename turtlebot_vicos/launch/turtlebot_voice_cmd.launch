@@ -1,0 +1,13 @@
+<launch>
+
+  <include file="$(find julius_ros)/launch/recognizer.launch">
+    <arg name="configuration" value="$(find julius_ros)/models/turtlebot.jconf" />
+  </include>
+
+  <node name="voice_cmd_vel" pkg="turtlebot_vicos" type="voice_cmd_vel.py" output="screen">
+    <remap from="cmd_vel" to="cmd_vel_mux/input/navi"/>
+    <remap from="commands" to="recognizer/output"/>
+    <param name="prefix" type="string" value="robot " />
+  </node>
+
+</launch>
