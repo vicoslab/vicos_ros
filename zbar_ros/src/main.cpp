@@ -24,24 +24,28 @@ IplImage * frame = 0;
 ImageScanner scanner;
 ros::Publisher code;
 uint message_sequence = 0;
+image_transport::Publisher marker_image;
+
 
 void imageReceiver(const sensor_msgs::ImageConstPtr &image) {
-
   try {
     bridge = cv_bridge::toCvCopy(image, enc::MONO8);
   }
   catch (cv_bridge::Exception& e) {
     ROS_ERROR("cv_bridge exception: %s", e.what());
     return;
-  }  
-  
+  }
+
   cv::Mat cv_matrix = bridge->image;
-  int width = cv_matrix.cols; 
+  cv::Mat color_image;
+  cv::cvtColor(cv_matrix, color_image, CV_GRAY2RGB);
+
+  int width = cv_matrix.cols;
   int height = cv_matrix.rows;
 
-	uchar* raw = cv_matrix.ptr<uchar>(0);
-	Image scan_image(width, height, "Y800", raw, width * height);
-	int n = scanner.scan(scan_image); 
+  uchar* raw = cv_matrix.ptr<uchar>(0);
+  Image scan_image(width, height, "Y800", raw, width * height);
+  int n = scanner.scan(scan_image);
 
   if (n < 0) {
    	ROS_ERROR("Error occured while finding barcode");
@@ -53,12 +57,12 @@ void imageReceiver(const sensor_msgs::ImageConstPtr &image) {
             symbol != scan_image.symbol_end();
             ++symbol) {
     std::stringstream ss;
-  	//Publish msg on zbar topic 
+  	//Publish msg on zbar topic
 	  zbar_ros::Marker msg;
 	  ss << symbol->get_data();
-    msg.header.seq = message_sequence++;
-    msg.header.stamp = ros::Time::now();
-    msg.header.frame_id = image->header.frame_id;
+      msg.header.seq = message_sequence++;
+      msg.header.stamp = ros::Time::now();
+      msg.header.frame_id = image->header.frame_id;
 	  msg.data = ss.str();
 
     int x1 = width, y1 = height, x2 = 0, y2 = 0;
@@ -70,17 +74,23 @@ void imageReceiver(const sensor_msgs::ImageConstPtr &image) {
       y2 = MAX(y2, symbol->get_location_y(i));
     }
 
-    msg.center_x = (x1 + x2) / 2; 
-    msg.center_y = (y1 + y2) / 2; 
-    msg.width = (x2 - x1); 
-    msg.height = (y2 + y1); 
+    msg.center_x = (x1 + x2) / 2;
+    msg.center_y = (y1 + y2) / 2;
+    msg.width = (x2 - x1);
+    msg.height = (y2 + y1);
 
     if(SHOW_CV_WINDOW) {
-      cv::rectangle(cv_matrix, cv::Point(x1,y1), cv::Point(x2,y2), cv::Scalar(255), 2);
+      cv::rectangle(cv_matrix, cv::Point(x1,y1), cv::Point(x2,y2), cv::Scalar(255, 0, 0), 2);
+      cv::rectangle(color_image, cv::Point(x1,y1), cv::Point(x2,y2), cv::Scalar(255, 0, 0), 2);
     }
-
-	  code.publish(msg);
+    code.publish(msg);
   }
+
+  cv_bridge::CvImage out_msg;
+  out_msg.header   = std_msgs::Header();
+  out_msg.encoding = "bgr8";
+  out_msg.image    = color_image;
+  marker_image.publish(out_msg.toImageMsg());  
 
   //Show image in CV window
   if(SHOW_CV_WINDOW) {
@@ -90,8 +100,9 @@ void imageReceiver(const sensor_msgs::ImageConstPtr &image) {
 	//cvReleaseImage
   }
 
- // bridge.release();
+  // bridge.release();
 }
+
 
 int main(int argc, char **argv)
 {
@@ -103,12 +114,15 @@ int main(int argc, char **argv)
   n.param("barcode_detector/image_topic", IMAGE_TOPIC, string("/camera/rgb/image_color"));
 
   if(SHOW_CV_WINDOW)
-  	cv::namedWindow("zbar", CV_WINDOW_AUTOSIZE); 
-  
-  scanner.set_config(ZBAR_NONE, ZBAR_CFG_ENABLE, 1); 
+  	cv::namedWindow("zbar", CV_WINDOW_AUTOSIZE);
+
+  scanner.set_config(ZBAR_NONE, ZBAR_CFG_ENABLE, 1);
 
   code = n.advertise<zbar_ros::Marker>("markers", 1000);
-  ros::Subscriber sub = n.subscribe(IMAGE_TOPIC, 10, imageReceiver);
+
+  image_transport::ImageTransport it(n);
+  marker_image = it.advertise("/qrcode_image", 1);
+  ros::Subscriber sub = n.subscribe<sensor_msgs::Image>(IMAGE_TOPIC, 10, imageReceiver);
 
   ros::spin();
 
