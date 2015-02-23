@@ -3,11 +3,10 @@ import roslib
 roslib.load_manifest('facedetector')
 import rospy
 import sys, select, termios, tty
-import cv
 import time
 import Image
 import os
-import cv2
+import cv2, cv, numpy
 from std_msgs.msg import String
 from std_msgs.msg import Bool
 import sensor_msgs.msg
@@ -27,56 +26,42 @@ class FaceDetect():
 		min_neighbors = 2
 		haar_flags = 0
 
-		# Allocate the temporary images
-		gray = cv.CreateImage((image.width, image.height), 8, 1)
-		smallImage = cv.CreateImage((cv.Round(image.width / self.image_scale),
-			cv.Round(image.height / self.image_scale)), 8 ,1)
 		# Convert color input image to grayscale
-		cv.CvtColor(image, gray, cv.CV_BGR2GRAY)
+		gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 		# Scale input image for faster processing
-		cv.Resize(gray, smallImage, cv.CV_INTER_LINEAR)
+		smallImage = cv2.resize(gray, (int(image.shape[1] / self.image_scale), int(image.shape[0] / self.image_scale)), interpolation=cv2.INTER_LINEAR)
 		# Equalize the histogram
-		cv.EqualizeHist(smallImage, smallImage)
+		smallImage = cv2.equalizeHist(smallImage)
 
 		# Detect the faces
-		faces = cv.HaarDetectObjects(smallImage, self.faceCascade, cv.CreateMemStorage(0),
-			haar_scale, min_neighbors, haar_flags, min_size)
-
-		iplimage = cv.GetImage(image)
+		faces = self.faceCascade.detectMultiScale(smallImage, haar_scale, min_neighbors, haar_flags, min_size)
 
 		detections = []
 
-		if faces:
-			for ((x, y, w, h), n) in faces:
-				pt1 = (int(x * self.image_scale), int(y * self.image_scale))
-				pt2 = (int((x + w) * self.image_scale), int((y + h) * self.image_scale))
+		for (x, y, w, h) in faces:
+			pt1 = (int(x * self.image_scale), int(y * self.image_scale))
+			pt2 = (int((x + w) * self.image_scale), int((y + h) * self.image_scale))
+
+			if draw:
+				cv2.rectangle(image, pt1, pt2, cv.RGB(255, 0, 0), 3, 8, 0)
+
+			face_image = gray[pt1[1]:pt2[1], pt1[0]:pt2[0]]
+
+			if self.detect_eyes:
+				subimage = face_image[0:int(face_image.shape[0]/2), :]
+				eyes = self.eyeCascade.detectMultiScale(subimage, haar_scale, min_neighbors, haar_flags, (15, 15))	
+
+				if len(eyes) > 1:
+					detections.append((x,y,w,h,numpy.copy(face_image)))
 
 				if draw:
-					cv.Rectangle(image, pt1, pt2, cv.RGB(255, 0, 0), 3, 8, 0)
+					for (ex, ey, ew, eh) in eyes:
+						# Draw a rectangle around the eye
+						cv2.rectangle(image,
+						(ex + pt1[0], ey + pt1[1]), (ex + ew + pt1[0], ey + eh + pt1[1]), cv.RGB(255, 0, 0), 1, 8, 0)		
 
-				face_image = cv.GetSubRect(gray, (pt1[0], pt1[1], pt2[0] - pt1[0], pt2[1] - pt1[1]))
-	
-				if self.detect_eyes:
-
-					cv.SetImageROI(iplimage, (pt1[0], pt1[1], pt2[0] - pt1[0], int((pt2[1] - pt1[1]) * 0.5)))
-					eyes = cv.HaarDetectObjects(image, eyeCascade, cv.CreateMemStorage(0),
-						haar_scale, min_neighbors,haar_flags, (15, 15))	
-
-					if eyes:
-						if len(eyes) > 1:
-							detections.append((x,y,w,h,cv.CloneMat(face_image)))
-
-						if draw:
-							for eye in eyes:
-								# Draw a rectangle around the eye
-								cv.Rectangle(image,
-								(eye[0][0], eye[0][1]), (eye[0][0] + eye[0][2],
-								eye[0][1] + eye[0][3]), cv.RGB(255, 0, 0), 1, 8, 0)		
-
-				else:
-					detections.append((pt1[0], pt1[1], pt2[0] - pt1[0], pt2[1] - pt1[1],cv.CloneMat(face_image)))
-
-		cv.ResetImageROI(iplimage)
+			else:
+				detections.append((pt1[0], pt1[1], pt2[0] - pt1[0], pt2[1] - pt1[1], numpy.copy(face_image)))
 
 		return detections
 
@@ -91,7 +76,7 @@ class FaceDetect():
 		if not self.enabled:
 			return
 		try:
-			cv_image = self.bridge.imgmsg_to_cv(data, "bgr8")
+			cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
 			detections = self.detect_faces(cv_image, self.cv_window)
 
 			if len(detections) > 0:
@@ -104,14 +89,14 @@ class FaceDetect():
 					message.y.append(detection[1])
 					message.width.append(detection[2])
 					message.height.append(detection[3])
-					message.image.append(self.bridge.cv_to_imgmsg(detection[4], "mono8"))
+					message.image.append(self.bridge.cv2_to_imgmsg(detection[4], "mono8"))
 
 				self.message_counter += 1
 				self.faces_pub.publish(message)
 			
 			if self.cv_window:
-				cv.ShowImage(CV_WINDOW_TITLE, cv_image)
-				cv.WaitKey(1)
+				cv2.imshow(CV_WINDOW_TITLE, cv_image)
+				cv2.waitKey(1)
 
 		except CvBridgeError, e:
 			print e
@@ -127,9 +112,9 @@ class FaceDetect():
 		
 		self.detect_eyes = rospy.get_param('~detect_eyes', False)
 
-		self.faceCascade = cv.Load(os.path.join(data_path, "haarcascade_face.xml"))
+		self.faceCascade = cv2.CascadeClassifier(os.path.join(data_path, "haarcascade_face.xml"))
 		if self.detect_eyes:
-			self.eyeCascade = cv.Load(os.path.join(data_path, "haarcascade_eye.xml"))
+			self.eyeCascade = cv2.CascadeClassifier(os.path.join(data_path, "haarcascade_eye.xml"))
 
 		# init camera capture stuff
 		self.bridge = CvBridge()
