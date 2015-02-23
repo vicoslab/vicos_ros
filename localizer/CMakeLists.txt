@@ -5,7 +5,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp rospy std_msgs sensor_msgs genmsg geometry_msgs visualization_msgs nodelet tf image_geometry eigen_conversions
 )
 
-find_package(Eigen REQUIRED)
+find_package(Eigen3 REQUIRED)
 
 catkin_python_setup()
 
