@@ -35,6 +35,8 @@ include_directories(include ${catkin_INCLUDE_DIRS})
 ## Declare a cpp executable
 add_executable(barcode_detector src/main.cpp) 
 
+add_dependencies(barcode_detector zbar_ros_generate_messages_cpp)
+
 ## Specify libraries to link a library or executable target against
 target_link_libraries(barcode_detector ${catkin_LIBRARIES} zbar)
 
