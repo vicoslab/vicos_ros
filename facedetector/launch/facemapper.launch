@@ -2,7 +2,7 @@
 
   <arg name="camera_topic"/> <!-- TODO: use remapping instead -->
 
-  <!-- include file="$(find localizer)/launch/localizer_node.launch" / -->
+  <include file="$(find localizer)/launch/localizer_node.launch" />
 
   <node pkg="facedetector" type="mapper" name="facemapper" output="screen">
     <param name="faces_topic" type="string" value="/facedetector/faces" />

@@ -121,8 +121,8 @@ class FaceDetect():
 		self.image_sub = rospy.Subscriber(image_topic, Image, self.image_callback, queue_size=1)
 
 		# Subscribers and publishers
-		self.faces_pub = rospy.Publisher(faces_topic, Detection)
-		self.toggle_sub = rospy.Subscriber(toggle_topic, Bool, self.toggle_callback)
+		self.faces_pub = rospy.Publisher(faces_topic, Detection, queue_size=10)
+		self.toggle_sub = rospy.Subscriber(toggle_topic, Bool, self.toggle_callback, queue_size=10)
 
 		# init and call detection
 		self.enabled = rospy.get_param('~enabled', True)
