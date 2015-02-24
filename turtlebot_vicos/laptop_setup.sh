@@ -56,7 +56,7 @@ export TURTLEBOT_BASE=\"roomba\"
 export TURTLEBOT_STACKS=\"circles\"
 export TURTLEBOT_SIMULATION=\"false\"
 export TURTLEBOT_3D_SENSOR=kinect
-export TURTLEBOT_SERIAL_PORT=/dev/ttyUSB0
+export TURTLEBOT_SERIAL_PORT=/dev/roomba
 export GAZEBO_MODEL_DATABASE_URI=\"http://gazebosim.org/models\"
 source $ROS_WORKSPACE/devel/setup.bash
 "
@@ -151,8 +151,8 @@ if (( $STATE < 2 )); then
 
   if ! [ -f /etc/udev/rules.d/52-turtlebot.rules ] ; then
 
-    echo 'ATTRS{idProduct}=="2008",ATTRS{idVendor}=="0557",MODE="666",GROUP="turtlebot"
-ATTRS{idProduct}=="6001",ATTRS{idVendor}=="0403",MODE="666",GROUP="turtlebot"' >> /etc/udev/rules.d/52-turtlebot.rules
+    echo 'ATTRS{idProduct}=="2008",ATTRS{idVendor}=="0557",MODE="666",GROUP="turtlebot",SYMLINK="roomba"
+ATTRS{idProduct}=="6001",ATTRS{idVendor}=="0403",MODE="666",GROUP="turtlebot",SYMLINK="roomba"' >> /etc/udev/rules.d/52-turtlebot.rules
 
     service udev restart
   fi
