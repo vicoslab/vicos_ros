@@ -102,7 +102,7 @@ if (( $STATE < 1 )); then
     wget http://packages.ros.org/ros.key -O - | sudo apt-key add -
   fi
 
-  PACKAGES="ros-$ROS_DIST-desktop-full ros-$ROS_DIST-rqt-* ros-$ROS_DIST-turtlebot ros-$ROS_DIST-turtlebot-apps ros-$ROS_DIST-turtlebot-create ros-$ROS_DIST-turtlebot-rviz-launchers ros-$ROS_DIST-audio-common ros-$ROS_DIST-usb-cam vim git subversion openssh-server chrony git-gui screen synaptic libzbar-dev python-rosinstall julius-voxforge libjulius-dev alsa-oss meld"
+  PACKAGES="ros-$ROS_DIST-desktop-full ros-$ROS_DIST-rqt-* ros-$ROS_DIST-turtlebot ros-$ROS_DIST-turtlebot-apps ros-$ROS_DIST-turtlebot-create ros-$ROS_DIST-turtlebot-rviz-launchers ros-$ROS_DIST-audio-common ros-$ROS_DIST-usb-cam ros-$ROS_DIST-freenect-stack libfreenect-dev vim git subversion openssh-server chrony git-gui screen synaptic libzbar-dev python-rosinstall julius-voxforge libjulius-dev alsa-oss meld"
 
   if [ ! -f /etc/apt/sources.list.d/linrunner-tlp-$UBUNTU_DIST.list -a  -n $LAPTOP ]; then
     add-apt-repository -y ppa:linrunner/tlp
