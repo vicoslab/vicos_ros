@@ -162,7 +162,7 @@ echo "2" > $STATEFILE
 if (( $STATE < 3 )); then
 
 	if ! [ -f /usr/local/bin/roshost ] ; then
-		wget -o /usr/local/bin/roshost https://raw.githubusercontent.com/vicoslab/vicos_ros/master/turtlebot_vicos/roshost.sh
+		wget -O /usr/local/bin/roshost https://raw.githubusercontent.com/vicoslab/vicos_ros/master/turtlebot_vicos/roshost.sh
 	fi
   chmod +x /usr/local/bin/roshost
 
