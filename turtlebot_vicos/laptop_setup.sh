@@ -172,7 +172,7 @@ echo "3" > $STATEFILE
 
 configure_user $RUNUSERNAME > /dev/null
 
-declare -a TEAMS=("alpha" "beta" "gamma" "delta" "epsilon" "zeta" "eta" "theta" "iota" "kappa")
+declare -a TEAMS=("alpha" "beta" "gamma" "delta" "epsilon" "zeta" "eta" "theta" "iota" "kappa" "lambda" "mu" "nu" "xi" "omicron" "pi" "rho")
 
 SECRETLIST="$SCRIPTDIR/passwords.txt"
 
