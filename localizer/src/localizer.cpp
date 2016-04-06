@@ -51,6 +51,13 @@ struct DepthTraits<float>
 	}
 };
 
+typedef struct DepthSnapshot {
+
+	image_geometry::PinholeCameraModel camera;
+	sensor_msgs::ImageConstPtr depth;
+
+} DepthSnapshot;
+
 const std::string stripSlashTF2(const std::string& str) {
 
 	if (str.find("/") == 0) {
@@ -62,6 +69,8 @@ const std::string stripSlashTF2(const std::string& str) {
 
 class LocalizerNodelet : public nodelet::Nodelet {
 private:
+	int queue_size;
+
 	// Subscriptions
 	message_filters::Subscriber<sensor_msgs::Image> sub_depth_image;
 	message_filters::Subscriber<sensor_msgs::CameraInfo> sub_depth_info;
@@ -73,11 +82,10 @@ private:
 
 	ros::ServiceServer localize_service;
 	boost::mutex request_mutex;
-	image_geometry::PinholeCameraModel saved_depth_model;
-	sensor_msgs::ImageConstPtr saved_depth_msg;
+	std::vector<DepthSnapshot> snapshot_buffer;
 
 	template<typename T>
-	bool estimate(const sensor_msgs::ImageConstPtr& depth_msg, const geometry_msgs::Point& point, int radius, const Eigen::Affine3d& target_to_depth, geometry_msgs::Pose& pose);
+	bool estimate(const sensor_msgs::ImageConstPtr& depth_msg, const image_geometry::PinholeCameraModel& camera_model, const geometry_msgs::Point& point, int radius, const Eigen::Affine3d& target_to_depth, geometry_msgs::Pose& pose);
 
 public:
 	virtual void onInit();
@@ -102,14 +110,28 @@ bool LocalizerNodelet::localize(localizer::Localize::Request &req, localizer::Lo
 	res.pose.orientation.z = 1;
 	res.pose.orientation.w = 0;
 
-	if (!saved_depth_msg) return true;
+	unsigned int best, i;
+	double best_time = 1000;
+	for (i = 0; i < snapshot_buffer.size(); i++) {
+		double timediff = std::abs(req.header.stamp.toSec() - snapshot_buffer[i].depth->header.stamp.toSec());
+		if (timediff < best_time) {
+			best = i;
+			best_time = timediff;
+		}
+	}
+
+	if (best_time > 1) return true;
+
+	NODELET_INFO_THROTTLE(2, "Selected depth image time difference: %fs (buffer size: %ld)", best_time, snapshot_buffer.size());
+
+	DepthSnapshot snapshot = snapshot_buffer[best];
 
 	Eigen::Affine3d target_to_depth;
 	try
 	{
 		geometry_msgs::TransformStamped transform = tf_buffer->lookupTransform (
-				              stripSlashTF2(saved_depth_msg->header.frame_id), stripSlashTF2(req.header.frame_id),
-				              saved_depth_msg->header.stamp);
+				              stripSlashTF2(snapshot.depth->header.frame_id), stripSlashTF2(req.header.frame_id),
+				              snapshot.depth->header.stamp);
 
 		tf::transformMsgToEigen(transform.transform, target_to_depth);
 	}
@@ -119,14 +141,14 @@ bool LocalizerNodelet::localize(localizer::Localize::Request &req, localizer::Lo
 		return false;
 	}
 
-	if (saved_depth_msg->encoding == sensor_msgs::image_encodings::TYPE_16UC1) {
-		estimate<uint16_t>(saved_depth_msg, req.point, req.scope, target_to_depth, res.pose);
+	if (snapshot.depth->encoding == sensor_msgs::image_encodings::TYPE_16UC1) {
+		estimate<uint16_t>(snapshot.depth, snapshot.camera, req.point, req.scope, target_to_depth, res.pose);
 	}
-	else if (saved_depth_msg->encoding == sensor_msgs::image_encodings::TYPE_32FC1) {
-		estimate<float>(saved_depth_msg, req.point, req.scope, target_to_depth, res.pose);
+	else if (snapshot.depth->encoding == sensor_msgs::image_encodings::TYPE_32FC1) {
+		estimate<float>(snapshot.depth, snapshot.camera, req.point, req.scope, target_to_depth, res.pose);
 	}
 	else {
-		NODELET_ERROR_THROTTLE(5, "Depth image has unsupported encoding [%s]", saved_depth_msg->encoding.c_str());
+		NODELET_ERROR_THROTTLE(5, "Depth image has unsupported encoding [%s]", snapshot.depth->encoding.c_str());
 		return false;
 	}
 
@@ -143,14 +165,13 @@ void LocalizerNodelet::onInit()
 	tf_buffer.reset( new tf2_ros::Buffer );
 	tf_listener.reset( new tf2_ros::TransformListener(*tf_buffer) );
 
-	saved_depth_msg.reset();
+	snapshot_buffer.clear();
 
 	// Read parameters.
-	int queue_size;
-	private_nh.param("queue_size", queue_size, 10);
+	private_nh.param("queue_size", queue_size, 20);
 
-    sub_depth_image.subscribe(nh, "depth/image", 1);
-  	sub_depth_info.subscribe(nh, "depth/camera_info", 1);
+	sub_depth_image.subscribe(nh, "depth/image", 1);
+	sub_depth_info.subscribe(nh, "depth/camera_info", 1);
 
 	synchronized_listener.reset( new Synchronizer(SyncPolicy(queue_size), sub_depth_image, sub_depth_info) );
 	synchronized_listener->registerCallback(boost::bind(&LocalizerNodelet::imageCallback, this, _1, _2));
@@ -166,19 +187,26 @@ void LocalizerNodelet::imageCallback(const sensor_msgs::ImageConstPtr& depth_ima
 	boost::lock_guard<boost::mutex> lock(request_mutex);
 	if (!depth_image_msg) return;
 
-	saved_depth_model.fromCameraInfo(depth_info_msg);
-	saved_depth_msg = depth_image_msg;
+	DepthSnapshot snapshot;
 
+	snapshot.camera.fromCameraInfo(depth_info_msg);
+	snapshot.depth = depth_image_msg;
+
+	snapshot_buffer.push_back(snapshot);
+
+	if (snapshot_buffer.size() > queue_size) {
+		snapshot_buffer.erase(snapshot_buffer.begin());
+	}
 }
 
 template<typename T>
-bool LocalizerNodelet::estimate(const sensor_msgs::ImageConstPtr& depth_msg, const geometry_msgs::Point& point, int scope, const Eigen::Affine3d& target_to_depth, geometry_msgs::Pose& pose) {
+bool LocalizerNodelet::estimate(const sensor_msgs::ImageConstPtr& depth_msg, const image_geometry::PinholeCameraModel& camera_model, const geometry_msgs::Point& point, int scope, const Eigen::Affine3d& target_to_depth, geometry_msgs::Pose& pose) {
 
 	// Extract all the parameters we need
-	double depth_fx = saved_depth_model.fx();
-	double depth_fy = saved_depth_model.fy();
-	double depth_cx = saved_depth_model.cx(), depth_cy = saved_depth_model.cy();
-	double depth_Tx = saved_depth_model.Tx(), depth_Ty = saved_depth_model.Ty();    
+	double depth_fx = camera_model.fx();
+	double depth_fy = camera_model.fy();
+	double depth_cx = camera_model.cx(), depth_cy = camera_model.cy();
+	double depth_Tx = camera_model.Tx(), depth_Ty = camera_model.Ty();    
 
 	Eigen::Vector4d xyz_target;
 	xyz_target << point.x, point.y, point.z, 1;
