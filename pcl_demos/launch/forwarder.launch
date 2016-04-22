@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+    <node pkg="pcl_demos" type="forwarder" name="forwarder">
+        <remap from="input" to="/camera/depth_registered/points"/>
+        <remap from="/pcl_demos/forwarded" to="output"/>
+    </node>
+</launch>
