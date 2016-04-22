@@ -229,7 +229,7 @@ void recognize() {
 	callback_add(recog, CALLBACK_EVENT_SPEECH_READY, status_recready, NULL);
 	callback_add(recog, CALLBACK_EVENT_SPEECH_START, status_recstart, NULL);
 	callback_add(recog, CALLBACK_RESULT, output_result, NULL);
-    callback_add(recog, CALLBACK_PAUSE_FUNCTION, status_paused_wait, NULL);
+  callback_add(recog, CALLBACK_PAUSE_FUNCTION, status_paused_wait, NULL);
 
 	/**************************/
 	/* Initialize audio input */
@@ -242,7 +242,7 @@ void recognize() {
 		return;
 	}
 
-    if (JULIUS_DEBUG) j_recog_info(recog);
+  if (JULIUS_DEBUG) j_recog_info(recog);
 
 	switch(j_open_stream(recog, NULL)) {
 		case 0:	
