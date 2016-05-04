@@ -1,0 +1,93 @@
+#!/usr/bin/env python
+import roslib
+roslib.load_manifest('localizer')
+import rospy
+import sys, select, termios, tty
+from std_msgs.msg import String, Bool, ColorRGBA
+import sensor_msgs.msg
+import message_filters
+import collections
+from detection_msgs.msg import Detection
+from localizer.srv import Localize
+from sensor_msgs.msg import CameraInfo
+from visualization_msgs.msg import Marker, MarkerArray
+from image_geometry import PinholeCameraModel
+from geometry_msgs.msg import Point, Vector3
+
+class DetectionMapper():
+
+    def camera_callback(self, camera_info):
+        self.camera_infos.append(camera_info)
+
+	def detection_callback(self, detection):
+
+		u = detection.x + detection.width / 2
+		v = detection.y + detection.height / 2
+
+        camera_info = None
+        best_time = 100
+        for ci in self.camera_infos:
+            time = abs(ci.header.stamp.to_sec() - detection.header.stamp.to_sec())
+            if time < best_time:
+                camera_info = ci
+                best_time = time
+
+        if not camera_info or best_time > 1:
+            return
+
+		camera_model = PinholeCameraModel()
+		camera_model.fromCameraInfo(camera_info)
+
+		point = Point(((u - camera_model.cx()) - camera_model.Tx()) / camera_model.fx(),
+	         ((v - camera_model.cy()) - camera_model.Ty()) / camera_model.fy(), 1)
+
+		localization = self.localize(detection.header, point, self.region_scope)
+
+		if not localization:
+            return
+
+		marker = Marker()
+		marker.header.stamp = detection.header.stamp
+		marker.header.frame_id = detection.header.frame_id
+		marker.pose = localization.pose
+		marker.type = Marker.CUBE
+		marker.action = Marker.ADD
+		marker.frame_locked = False
+		marker.lifetime = rospy.Duration.from_sec(1)
+		marker.id = self.marker_id_counter
+		marker.scale = Vector3(0.1, 0.1, 0.1)
+		marker.color = ColorRGBA(1, 0, 0, 1)
+    	self.markers.markers.append(marker)
+        self.marker_id_counter += 1
+
+    def flush(self):
+        if not markers.markers or len(markers.markers) == 0:
+    		self.markers = MarkerArray()
+            return
+		self.markers_pub.publish(markers)
+  		self.markers = MarkerArray()
+
+	def __init__(self):
+        self.marker_id_counter = 0
+		self.region_scope = rospy.get_param('~region', 3)
+		self.buffer_size = rospy.get_param('~camera_buffer_size', 50)
+		rospy.wait_for_service('localizer/localize')
+
+        self.camera_infos = collections.deque(maxlen = self.buffer_size)
+		self.detections_sub = message_filters.Subscriber('detections', Detection, self.detections_callback)
+		self.camera_sub = message_filters.Subscriber('camera_info', CameraInfo, self.camera_callback)
+
+		self.localize = rospy.ServiceProxy('localizer/localize', Localize)
+		self.markers_pub = rospy.Publisher('markers', MarkerArray)
+   
+if __name__ == '__main__':
+
+		rospy.init_node('localizer')
+		try:
+			mapper = DetectionMapper()
+			r = rospy.Rate(30)
+			while not rospy.is_shutdown():
+                mapper.flush()
+				r.sleep()
+		except rospy.ROSInterruptException: pass
+

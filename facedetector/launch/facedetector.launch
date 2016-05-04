@@ -1,9 +1,0 @@
-<launch>
-  <arg name="image_topic"/> <!-- TODO: use remapping instead -->
-  <node pkg="facedetector" type="detector" name="facedetector" output="screen">
-    <param name="image_topic" type="string" value="$(arg image_topic)" />
-    <param name="data_path" value="$(find facedetector)/data/"/>
-    <param name="show_cv_window" type="bool" value="false" />
-  </node>
-
-</launch>
