@@ -37,3 +37,4 @@ nosetests.xml
 .pydevproject
 
 .local
+detection/dlib_detector/dlib
