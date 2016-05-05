@@ -294,7 +294,7 @@ int main(int argc, char **argv) {
   
 	boost::thread julius_thread(recognize);
 
-	commands = n.advertise<std_msgs::String>(ros::this_node::getName() + std::string("/output"), 1000);
+	commands = n.advertise<std_msgs::String>(std::string("output"), 1000);
 
 	ros::ServiceServer start_service = n.advertiseService<std_srvs::Empty::Request, std_srvs::Empty::Response>(ros::this_node::getName() + std::string("/start"), start_service_callback);
 

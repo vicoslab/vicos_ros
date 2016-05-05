@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<package>
+  <name>voice_navigation</name>
+  <version>0.1.0</version>
+  <description>Navigating robot with voice commands</description>
+  <maintainer email="luka.cehovin@fri.uni-lj.si">Luka Čehovin</maintainer>
+  <license>BSD</license>
+  <buildtool_depend>catkin</buildtool_depend>
+  <run_depend>std_msgs</run_depend>
+  <run_depend>navigation_msgs</run_depend>
+  <run_depend>turtlebot_bringup</run_depend>
+  <export>
+  </export>
+</package>

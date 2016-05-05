@@ -1,0 +1,9 @@
+<launch>
+
+  <node pkg="voice_navigation" name="voice_cmd_vel" type="voice_cmd_vel.py" output="screen">
+    <remap from="cmd_vel" to="cmd_vel_mux/input/navi"/>
+    <remap from="commands" to="/commands"/>
+    <param name="prefix" type="string" value="robot " />
+  </node>
+
+</launch>

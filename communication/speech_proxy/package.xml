@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package>
+  <name>speech_proxy</name>
+  <version>0.1.0</version>
+  <description>A verbal command speect-to-text proxy that forwards lines from a TCP stream to ROS.</description>
+
+  <maintainer email="luka.cehovin@fri.uni-lj.si">Luka Cehovin</maintainer>
+
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>roscpp</build_depend>
+  <run_depend>roscpp</run_depend>
+ 
+  <export>
+  </export>
+</package>
