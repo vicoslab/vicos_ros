@@ -1,0 +1,7 @@
+<class_libraries>
+    <library path="lib/libcostmap_layers">
+        <class type="costmap_layers::VirtualWallLayer" base_class_type="costmap_2d::Layer">
+            <description>Add virtual walls to your map.</description>
+        </class>
+    </library>
+</class_libraries>
