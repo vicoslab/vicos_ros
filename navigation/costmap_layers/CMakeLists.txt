@@ -18,3 +18,5 @@ generate_messages(DEPENDENCIES sensor_msgs std_msgs geometry_msgs)
 include_directories(${catkin_INCLUDE_DIRS} include)
 
 add_library(costmap_layers src/virtual_wall_layer.cpp)
+add_dependencies(costmap_layers ${${PROJECT_NAME}_EXPORTED_TARGETS})
+

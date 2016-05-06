@@ -13,15 +13,17 @@ VirtualWallLayer::VirtualWallLayer() {}
 
 void VirtualWallLayer::onInitialize()
 {
-  ros::NodeHandle nh("~/" + name_);
+  ros::NodeHandle pnh("~/" + name_), nh;
   current_ = true;
   default_value_ = NO_INFORMATION;
   matchSize();
 
-  dsrv_ = new dynamic_reconfigure::Server<costmap_2d::GenericPluginConfig>(nh);
+  dsrv_ = new dynamic_reconfigure::Server<costmap_2d::GenericPluginConfig>(pnh);
   dynamic_reconfigure::Server<costmap_2d::GenericPluginConfig>::CallbackType cb = boost::bind(
       &VirtualWallLayer::reconfigureCB, this, _1, _2);
   dsrv_->setCallback(cb);
+
+  subscriber = nh.subscribe ("walls", 100, &VirtualWallLayer::onWallMessageCallback, this);
 }
 
 
@@ -63,19 +65,22 @@ void VirtualWallLayer::updateCosts(costmap_2d::Costmap2D& master_grid, int min_i
 }
 
 
-void VirtualWallLayer::onWallMessageCallback(WallConstPtr& msg) {
+void VirtualWallLayer::onWallMessageCallback(const WallPtr& msg) {
 
     WallInfo wi;
 
     if(worldToMap(msg->from.x, msg->from.y, wi.x1, wi.y1) && worldToMap(msg->to.x, msg->to.y, wi.x2, wi.y2)){
         walls[msg->identifier] = wi;
-
         updateWalls();
+    } else {
+        walls.erase(msg->identifier);
     }
 
 }
 
 void VirtualWallLayer::updateWalls() {
+
+    resetMap(0, 0, getSizeInCellsX(), getSizeInCellsY());
 
     for (std::map<std::string, WallInfo>::iterator it=walls.begin(); it!=walls.end(); ++it) {
         drawWallLine((int) (*it).second.x1, (int) (*it).second.y1, (int) (*it).second.x2, (int) (*it).second.y2);
@@ -83,7 +88,7 @@ void VirtualWallLayer::updateWalls() {
     
 }
 
-#define PUT_CELL(x, y) { int index = getIndex(x, y); if (index >= 0) costmap_[index] = LETHAL_OBSTACLE; }
+#define PUT_CELL(x, y) { if (x >= 0 && y >= 0 && x < getSizeInCellsX() && y < getSizeInCellsY()) costmap_[getIndex(x, y)] = LETHAL_OBSTACLE; }
 
 void VirtualWallLayer::drawWallLine(int x1, int y1, int x2, int y2) {
     int x,y,dx,dy,dx1,dy1,px,py,xe,ye,i;

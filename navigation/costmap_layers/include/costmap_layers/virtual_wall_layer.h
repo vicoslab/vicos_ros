@@ -30,7 +30,7 @@ public:
                              double* max_y);
     virtual void updateCosts(costmap_2d::Costmap2D& master_grid, int min_i, int min_j, int max_i, int max_j);
 
-    virtual void onWallMessageCallback(WallConstPtr& msg);
+    virtual void onWallMessageCallback(const WallPtr& msg);
 
     bool isDiscretized()
     {
@@ -50,6 +50,8 @@ private:
     void drawWallLine(int x1, int y1, int x2, int y2);
 
     void updateWalls();
+
+    ros::Subscriber subscriber;
 };
 
 }
