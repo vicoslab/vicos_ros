@@ -38,3 +38,5 @@ nosetests.xml
 
 .local
 detection/dlib_detector/dlib
+communication/speech_proxy/android/build
+.idea
