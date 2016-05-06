@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <EditTextPreference
+        android:key="proxy_ip"
+        android:title="@string/proxy_ip"
+        android:summary="@string/proxy_ip_summary"
+        android:defaultValue="127.0.0.1"
+        android:inputType="phone"
+        android:digits="0123456789." />
+    <EditTextPreference
+        android:key="proxy_port"
+        android:title="@string/proxy_port"
+        android:summary="@string/proxy_port_summary"
+        android:defaultValue="5000"
+        android:numeric="integer"/>
+</PreferenceScreen>
