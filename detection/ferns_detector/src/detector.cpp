@@ -10,9 +10,9 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
-#include <ferns_ros/Detection.h>
-#include <ferns_ros/DetectedPoint.h>
-#include <ferns_ros/ModelStatus.h>
+#include <ferns_detector/Detection.h>
+#include <ferns_detector/DetectedPoint.h>
+#include <ferns_detector/ModelStatus.h>
 #include "ferns/mcv.h"
 #include "ferns/planar_pattern_detector_builder.h"
 #include "ferns/template_matching_based_tracker.h"

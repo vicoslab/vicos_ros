@@ -10,7 +10,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <sensor_msgs/image_encodings.h>
 #include <zbar.h>
-#include "zbar_ros/Marker.h"
+#include "zbar_detector/Marker.h"
 
 using namespace std;
 using namespace zbar;
