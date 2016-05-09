@@ -24,6 +24,7 @@
   <run_depend>sensor_msgs</run_depend>
   <run_depend>cv_bridge</run_depend>
   <run_depend>image_transport</run_depend>
+  <run_depend>message_runtime</run_depend>
 
   <export>
   </export>

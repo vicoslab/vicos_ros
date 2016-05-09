@@ -27,7 +27,7 @@ target_link_libraries(detector ferns ${catkin_LIBRARIES})
 target_link_libraries(trainer ferns ${catkin_LIBRARIES})
 target_link_libraries(tester ferns ${catkin_LIBRARIES})
 
-ADD_DEPENDENCIES(detector ferns_ros_gencpp)
+ADD_DEPENDENCIES(detector ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 install(TARGETS detector trainer
    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

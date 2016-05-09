@@ -19,7 +19,7 @@
 
 using namespace cv;
 using namespace std;
-using namespace ferns_ros;
+using namespace ferns_detector;
 namespace enc = sensor_msgs::image_encodings;
 
 const int max_filename = 1000;
@@ -438,7 +438,7 @@ void statusReceiver(const ModelStatus& newStatus) {
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "ferns_ros");
+    ros::init(argc, argv, "ferns_detector");
 
     string models_path;
 
