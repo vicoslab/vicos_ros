@@ -49,6 +49,7 @@ macro(android_create_apk name apk_package_name apk_directory)
     SET(CUSTOM_MANIFEST "false")
   endif()
 
+  find_program(ZIPALIGN_EXECUTABLE zipalign PATHS ${ANDROID_SDK}/build-tools PATH_SUFFIXES "23.0.3" "19.1.0")
 
   # Create the directory for the libraries
   add_custom_command(TARGET ${ANDROID_NAME} PRE_BUILD
@@ -88,7 +89,7 @@ macro(android_create_apk name apk_package_name apk_directory)
     # Let Ant create the unsigned apk file
     SET(ANDROID_APK ${apk_directory}/bin/${ANDROID_NAME}.apk)
 
-    add_custom_command(OUTPUT ${ANDROID_APK}
+    add_custom_command(OUTPUT ${apk_directory}/bin/${ANDROID_NAME}-release-unsigned.apk
       COMMAND ${CMAKE_COMMAND} -E make_directory "${apk_directory}/res"
       COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/res" "${apk_directory}/res/"
       COMMAND ${CMAKE_COMMAND} -E make_directory "${apk_directory}/src"
@@ -98,15 +99,11 @@ macro(android_create_apk name apk_package_name apk_directory)
       WORKING_DIRECTORY "${apk_directory}" DEPENDS ${ANDROID_NAME} ${JAVA_SOURCES} COMMENT "Building Java wrapper")
 
     # Sign the apk file
-    add_custom_command(TARGET ${ANDROID_NAME}App
-      COMMAND jarsigner -verbose -keystore ${ANDROID_APK_SIGNER_KEYSTORE} bin/${ANDROID_NAME}-unsigned.apk ${ANDROID_APK_SIGNER_ALIAS}
-      WORKING_DIRECTORY "${apk_directory}")
+    add_custom_command(OUTPUT ${apk_directory}/bin/${ANDROID_NAME}.apk
+      COMMAND jarsigner -verbose -keystore ${ANDROID_APK_SIGNER_KEYSTORE} bin/${ANDROID_NAME}-release-unsigned.apk ${ANDROID_APK_SIGNER_ALIAS}
+      COMMAND ${ZIPALIGN_EXECUTABLE} -v -f 4 bin/${ANDROID_NAME}-release-unsigned.apk bin/${ANDROID_NAME}.apk
+      WORKING_DIRECTORY "${apk_directory}" DEPENDS ${apk_directory}/bin/${ANDROID_NAME}-release-unsigned.apk)
 
-    # Align the apk file
-    add_custom_command(TARGET ${ANDROID_NAME}App
-      COMMAND zipalign -v -f 4 bin/${ANDROID_NAME}-unsigned.apk bin/${ANDROID_NAME}.apk
-      WORKING_DIRECTORY "${apk_directory}")
-    
   else()
     SET(ANDROID_APK ${apk_directory}/bin/${ANDROID_NAME}-debug.apk)
 

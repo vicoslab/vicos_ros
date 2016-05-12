@@ -6,5 +6,5 @@ INCLUDE(Android REQUIRED)
 
 add_custom_target(VoiceCommander ALL)
 
-ANDROID_CREATE_APK(VoiceCommander "si.vicos" "${CMAKE_BINARY_DIR}/apk")
+ANDROID_CREATE_APK(VoiceCommander "si.vicos.ros.commander" "${CMAKE_BINARY_DIR}/apk")
 

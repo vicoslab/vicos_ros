@@ -1,4 +1,4 @@
-package si.vicos.ros;
+package si.vicos.ros.commander;
 
 import android.app.Activity;
 import android.preference.PreferenceFragment;

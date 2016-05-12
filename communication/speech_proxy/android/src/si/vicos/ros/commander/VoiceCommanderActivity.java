@@ -1,4 +1,4 @@
-package si.vicos.ros;
+package si.vicos.ros.commander;
 
 import java.util.ArrayList;
 import java.util.Locale;
@@ -232,7 +232,6 @@ public class VoiceCommanderActivity extends Activity implements SharedPreference
 	public void onStop() {
 
         super.onStop();
-        // Log.d(VoiceCommanderActivity.LOG_TAG, "Stopping");
         if (client != null) {
             client.stop();
             client = null;
@@ -252,7 +251,7 @@ public class VoiceCommanderActivity extends Activity implements SharedPreference
 
         client = new ClientConnection(sharedPreferences.getString("proxy_ip", "127.0.0.1"), 
             Integer.parseInt(sharedPreferences.getString("proxy_port", "5000")));
-        //Log.d(VoiceCommanderActivity.LOG_TAG, "Starting");
+
 	}
 
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
