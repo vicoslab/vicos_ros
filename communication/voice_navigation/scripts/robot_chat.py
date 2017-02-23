@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import roslib; roslib.load_manifest('turtlebot_vicos')
+import roslib; roslib.load_manifest('voice_navigation')
 import rospy
 import math
 import cmd
