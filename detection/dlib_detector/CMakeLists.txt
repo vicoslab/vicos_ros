@@ -23,8 +23,6 @@ if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/dlib/cmake")
     file(REMOVE_RECURSE "${CMAKE_CURRENT_SOURCE_DIR}/dlib-extracted")
 endif()
 
-
-
 include(dlib/cmake)
 
 include_directories(include
@@ -40,8 +38,11 @@ ENDIF()
 
 include_directories(include ${catkin_INCLUDE_DIRS})
 
-add_executable(object_detector src/object_detector.cpp) 
+add_executable(object_detector src/object_detector.cpp)
 target_link_libraries(object_detector ${catkin_LIBRARIES} dlib)
 
-add_executable(object_detector_trainer src/object_detector_trainer.cpp) 
+add_executable(face_detector src/face_detector.cpp)
+target_link_libraries(face_detector ${catkin_LIBRARIES} dlib)
+
+add_executable(object_detector_trainer src/object_detector_trainer.cpp)
 target_link_libraries(object_detector_trainer ${catkin_LIBRARIES} dlib)

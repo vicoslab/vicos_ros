@@ -1,7 +1,3 @@
-/* HOG DETECTOR
- *
- */
-
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
 #include <image_transport/image_transport.h>
@@ -13,10 +9,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/filesystem.hpp>
 
-#include <dlib/svm_threaded.h>
-#include <dlib/image_processing.h>
-#include <dlib/data_io.h>
-#include <dlib/image_transforms.h>
+#include <dlib/image_processing/frontal_face_detector.h>
 #include <dlib/opencv.h>
 
 #include <iostream>
@@ -27,13 +20,10 @@
 #include <detection_msgs/Detection.h>
 #include <std_msgs/Bool.h>
 
-//#include "multiclass.h"
-
 using namespace std;
 using namespace dlib;
 
-typedef scan_fhog_pyramid<pyramid_down<6> > image_scanner_type;
-object_detector<image_scanner_type> object_detector_function;
+frontal_face_detector detector_face;
 ros::Publisher pub;
 unsigned long message_counter = 0;
 bool active = true;
@@ -53,27 +43,25 @@ void detectCallback(const sensor_msgs::ImageConstPtr& cam_msg) {
 
 	// dlib wrapper for OpenCV
 	cv_image<bgr_pixel> image = cv_image<bgr_pixel>(cv_ptr->image);
-	std::vector<std::pair<double, rectangle> > rects;
-    object_detector_function(image, rects);
+    std::vector<dlib::rectangle> rects = detector_face(image);
 
     cv::Rect image_region(0, 0, cv_ptr->image.cols, cv_ptr->image.rows);
-
 	for (int i = 0; i < rects.size(); i++) {
-		std::pair<double, rectangle> cur = rects[i];
+		dlib::rectangle cur = rects[i];
         cv_image<bgr_pixel> chip;
-        cv::Rect region(cur.second.left(), cur.second.top(), cur.second.width(), cur.second.height());
+        cv::Rect region(cur.left(), cur.top(), cur.width(), cur.height());
         cv_bridge::CvImage cvi(cv_ptr->header, cv_ptr->encoding, cv_ptr->image(region & image_region));
 
 		detection_msgs::Detection msg = detection_msgs::Detection();
         msg.header.seq = message_counter++;
         msg.header.stamp = cam_msg->header.stamp;
         msg.header.frame_id = cam_msg->header.frame_id;
-		msg.x = cur.second.left();
-		msg.y = cur.second.top();
-		msg.height = cur.second.height();
-		msg.width = cur.second.width();
-        msg.confidence = cur.first;
-        msg.source = "dlib";
+		msg.x = cur.left();
+		msg.y = cur.top();
+		msg.height = cur.height();
+		msg.width = cur.width();
+        msg.confidence = 1;
+        msg.source = "dlib face";
         cvi.toImageMsg(msg.image);
 		pub.publish(msg);
 	}
@@ -90,21 +78,16 @@ int main(int argc, char** argv) {
 
     string detector_file, classifier_file;
 
-	ros::init (argc, argv, "object_detector");
+	ros::init (argc, argv, "face_detector");
 	ros::NodeHandle nh;
 	ros::NodeHandle nhp("~");
+
+    detector_face = get_frontal_face_detector();
 
 	ros::Subscriber sub = nh.subscribe ("camera", 1, detectCallback);
     ros::Subscriber tog = nh.subscribe ("toggle", 1, toggleCallback);
 
 	pub = nh.advertise<detection_msgs::Detection> ("detections", 1);
-
-    nhp.param<string>("detector", detector_file, string(""));
-
-    if (detector_file.empty())
-        return -1;
-
-	dlib::deserialize (detector_file) >> object_detector_function;
 
 	ros::spin();
 	return 0;
