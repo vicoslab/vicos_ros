@@ -19,7 +19,7 @@ class DetectionMapper():
     def camera_callback(self, camera_info):
         self.camera_infos.append(camera_info)
 
-    def detection_callback(self, detection):
+    def detections_callback(self, detection):
 
         u = detection.x + detection.width / 2
         v = detection.y + detection.height / 2
@@ -61,28 +61,33 @@ class DetectionMapper():
         self.marker_id_counter += 1
 
     def flush(self):
-        if not markers.markers or len(markers.markers) == 0:
+        if not self.markers.markers:
             self.markers = MarkerArray()
             return
-        self.markers_pub.publish(markers)
-        self.markers = MarkerArray()
+        self.markers_pub.publish(self.markers)
+        #self.markers = MarkerArray()
 
     def __init__(self):
+	self.markers = MarkerArray()
         self.marker_id_counter = 0
         self.region_scope = rospy.get_param('~region', 3)
         self.buffer_size = rospy.get_param('~camera_buffer_size', 50)
         rospy.wait_for_service('localizer/localize')
 
         self.camera_infos = collections.deque(maxlen = self.buffer_size)
-        self.detections_sub = message_filters.Subscriber('detections', Detection, self.detections_callback)
-        self.camera_sub = message_filters.Subscriber('camera_info', CameraInfo, self.camera_callback)
+        self.detections_sub = message_filters.Subscriber('detections', Detection)
+	self.detections_sub.registerCallback(self.detections_callback)
+
+        self.camera_sub = message_filters.Subscriber('camera_info', CameraInfo)
+	self.camera_sub.registerCallback(self.camera_callback)
 
         self.localize = rospy.ServiceProxy('localizer/localize', Localize)
         self.markers_pub = rospy.Publisher('markers', MarkerArray)
    
 if __name__ == '__main__':
 
-        rospy.init_node('localizer')
+        rospy.init_node('mapper')
+
         try:
             mapper = DetectionMapper()
             r = rospy.Rate(30)
